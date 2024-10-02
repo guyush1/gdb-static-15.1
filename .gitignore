@@ -1,3 +1,6 @@
 # IDE Folders
 .idea/
 .vscode/
+
+# Build folders
+build/
