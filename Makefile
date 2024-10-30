@@ -1,7 +1,8 @@
 ARCHS := x86_64 arm aarch64 powerpc
 TARGETS := $(addprefix build-, $(ARCHS))
+PACK_TARGETS := $(addprefix pack-, $(ARCHS))
 
-.PHONY: clean help download_packages build patch-gdb build-docker-image $(TARGETS)
+.PHONY: clean help download_packages build patch-gdb build-docker-image $(TARGETS) $(PACK_TARGETS)
 
 help:
 	@echo "Usage:"
@@ -46,6 +47,13 @@ $(TARGETS): build-%: download-packages patch-gdb build-docker-image
 	docker run --user $(shell id -u):$(shell id -g) \
 		--rm --volume .:/app/gdb gdb-static env TERM=xterm-256color \
 		/app/gdb/src/build.sh $* /app/gdb/build/ /app/gdb/src/gdb_static.patch
+
+pack: $(PACK_TARGETS)
+
+$(PACK_TARGETS): pack-%: build-%
+	if [ ! -f "build/artifacts/gdb-static-$*.tar.gz" ]; then \
+		tar -czf "build/artifacts/gdb-static-$*.tar.gz" -C "build/artifacts/$*" .; \
+	fi
 
 clean:
 	rm -rf build

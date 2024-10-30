@@ -7,8 +7,8 @@ script_dir=$(dirname "$0")
 # List of package URLs to download
 PACKAGE_URLS=(
     "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz"
-    "https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz"
-    "https://www.mpfr.org/mpfr-current/mpfr-4.2.1.tar.xz"
+    "https://ftp.gnu.org/pub/gnu/gmp/gmp-6.3.0.tar.xz"
+    "https://ftp.gnu.org/pub/gnu/mpfr/mpfr-4.2.1.tar.xz"
     "https://ftp.gnu.org/gnu/gdb/gdb-15.1.tar.xz"
 )
 
