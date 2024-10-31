@@ -9,7 +9,7 @@ PACKAGE_URLS=(
     "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz"
     "https://ftp.gnu.org/pub/gnu/gmp/gmp-6.3.0.tar.xz"
     "https://ftp.gnu.org/pub/gnu/mpfr/mpfr-4.2.1.tar.xz"
-    "https://ftp.gnu.org/gnu/gdb/gdb-15.1.tar.xz"
+    "https://ftp.gnu.org/gnu/gdb/gdb-15.2.tar.xz"
 )
 
 function unpack_tarball() {
