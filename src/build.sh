@@ -13,7 +13,7 @@ function set_compliation_variables() {
     # Returns:
     # 0: success
     # 1: failure
-    supported_archs=("arm" "aarch64" "powerpc" "x86_64")
+    supported_archs=("arm" "aarch64" "powerpc" "x86_64" "mips" "mipsel")
 
     local target_arch="$1"
 
@@ -33,6 +33,12 @@ function set_compliation_variables() {
     elif [[ "$target_arch" == "powerpc" ]]; then
         CROSS=powerpc-linux-gnu-
         export HOST=powerpc-linux-gnu
+    elif [[ "$target_arch" == "mips" ]]; then
+        CROSS=mips-linux-gnu-
+        export HOST=mips-linux-gnu
+    elif [[ "$target_arch" == "mipsel" ]]; then
+        CROSS=mipsel-linux-gnu-
+        export HOST=mipsel-linux-gnu
     elif [[ "$target_arch" == "x86_64" ]]; then
         CROSS=""
         export HOST=x86_64-linux-gnu
