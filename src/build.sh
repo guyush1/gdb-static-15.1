@@ -51,6 +51,17 @@ function set_compliation_variables() {
     export CXXFLAGS="-O2"
 }
 
+function set_ncurses_link_variables() {
+    # Set up ncurses library link variables
+    #
+    # Parameters:
+    # $1: ncursesw build dir
+    local ncursesw_build_dir="$1"
+
+    # Allow tui mode by adding our custom built static ncursesw library to the linker search path.
+    export LDFLAGS="-L$ncursesw_build_dir/lib $LDFLAGS"
+}
+
 function build_iconv() {
     # Build libiconv.
     #
@@ -152,6 +163,51 @@ function build_libgmp() {
     popd > /dev/null
 }
 
+function build_ncurses() {
+    # Build libncursesw.
+    #
+    # Parameters:
+    # $1: libncursesw package directory
+    # $2: target architecture
+    #
+    # Echoes:
+    # The libncursesw build directory
+    #
+    # Returns:
+    # 0: success
+    # 1: failure
+    local ncurses_dir="$1"
+    local target_arch="$2"
+    local ncurses_build_dir="$(realpath "$ncurses_dir/build-$target_arch")"
+
+    echo "$ncurses_build_dir"
+    mkdir -p "$ncurses_build_dir"
+
+    if [[ -f "$ncurses_build_dir/lib/libncursesw.a" ]]; then
+        >&2 echo "Skipping build: libncursesw already built for $target_arch"
+        return 0
+    fi
+
+    pushd "$ncurses_build_dir" > /dev/null
+
+    >&2 fancy_title "Building libncursesw for $target_arch"
+
+    ../configure --enable-static "CC=$CC" "CXX=$CXX" "--host=$HOST" \
+        "CFLAGS=$CFLAGS" "CXXFLAGS=$CXXFLAGS" "--enable-widec" 1>&2
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    make -j$(nproc) 1>&2
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    >&2 fancy_title "Finished building libncursesw for $target_arch"
+
+    popd > /dev/null
+}
+
 function build_libmpfr() {
     # Build libmpfr.
     #
@@ -242,7 +298,7 @@ function build_gdb() {
 
     >&2 fancy_title "Building gdb for $target_arch"
 
-    ../configure --enable-static --with-static-standard-libraries --disable-tui --disable-inprocess-agent \
+    ../configure --enable-static --enable-tui --with-static-standard-libraries --disable-inprocess-agent \
                  "--with-libiconv-prefix=$libiconv_prefix" --with-libiconv-type=static \
                  "--with-gmp=$libgmp_prefix" \
                  "--with-mpfr=$libmpfr_prefix" \
@@ -366,6 +422,13 @@ function build_gdb_with_dependencies() {
     if [[ $? -ne 0 ]]; then
         return 1
     fi
+
+    ncursesw_build_dir="$(build_ncurses "$packages_dir/ncurses" "$target_arch")"
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    set_ncurses_link_variables "$ncursesw_build_dir"
 
     build_and_install_gdb "$packages_dir/gdb" \
                       "$iconv_build_dir/lib/.libs/" \
