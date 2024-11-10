@@ -1,4 +1,4 @@
-ARCHS := x86_64 arm aarch64 powerpc
+ARCHS := x86_64 arm aarch64 powerpc mips mipsel
 TARGETS := $(addprefix build-, $(ARCHS))
 PACK_TARGETS := $(addprefix pack-, $(ARCHS))
 
