@@ -14,6 +14,7 @@ RUN apt update && apt install -y \
     gcc-mips-linux-gnu \
     gcc-mipsel-linux-gnu \
     gcc-powerpc-linux-gnu \
+    libncurses-dev \
     m4  \
     make \
     patch \
