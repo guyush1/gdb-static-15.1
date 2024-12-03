@@ -298,7 +298,7 @@ function build_gdb() {
 
     >&2 fancy_title "Building gdb for $target_arch"
 
-    ../configure --enable-static --enable-tui --with-static-standard-libraries --disable-inprocess-agent \
+    ../configure --target=aarch64-linux-gnu --enable-static --enable-tui --with-static-standard-libraries --disable-inprocess-agent \
                  "--with-libiconv-prefix=$libiconv_prefix" --with-libiconv-type=static \
                  "--with-gmp=$libgmp_prefix" \
                  "--with-mpfr=$libmpfr_prefix" \

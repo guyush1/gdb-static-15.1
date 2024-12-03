@@ -19,7 +19,7 @@ jobs:
       run: sudo apt-get install -y wget
 
     - name: Build
-      run: make build -j$((`nproc`+1))
+      run: make build-x86_64 -j$((`nproc`+1))
 
     - name: Pack
       run: make pack
