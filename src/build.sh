@@ -2,7 +2,7 @@
 
 # Include utils library
 script_dir=$(dirname "$0")
-. "$script_dir/utils.sh"
+source "$script_dir/utils.sh"
 
 function set_compliation_variables() {
     # Set compilation variables such as which compiler to use.
@@ -208,6 +208,64 @@ function build_ncurses() {
     popd > /dev/null
 }
 
+function build_python() {
+    # Build python.
+    #
+    # Parameters:
+    # $1: python package directory
+    # $2: target architecture
+    #
+    # Echoes:
+    # The python build directory
+    #
+    # Returns:
+    # 0: success
+    # 1: failure
+    local python_dir="$1"
+    local target_arch="$2"
+    local python_lib_dir="$(realpath "$python_dir/build-$target_arch")"
+
+    echo "$python_lib_dir"
+    mkdir -p "$python_lib_dir"
+
+    # Having a python-config file is an indication that we successfully built python.
+    if [[ -f "$python_lib_dir/python-config" ]]; then
+        >&2 echo "Skipping build: libpython already built for $target_arch"
+        return 0
+    fi
+
+    pushd "$python_lib_dir" > /dev/null
+    >&2 fancy_title "Building python for $target_arch"
+
+    export LINKFORSHARED=" "
+    export MODULE_BUILDTYPE="static"
+    export CONFIG_SITE="$python_dir/config.site-static"
+    >&2 CFLAGS="-static" LDFLAGS="-static" ../configure \
+        --prefix=$(realpath .) \
+        --disable-test-modules \
+        --with-ensurepip=no \
+        --without-decimal-contextvar \
+        --build=x86_64-pc-linux-gnu \
+        --host=$HOST \
+        --with-build-python=/usr/bin/python3.12 \
+        --disable-ipv6 \
+        --disable-shared
+
+    >&2 make -j $(nproc)
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    # Install python (in build dir using the prefix set above), in order to have a bash (for cross-compilation) python3-config that works.
+    >&2 make install
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    >&2 fancy_title "Finished building python for $target_arch"
+    popd > /dev/null
+}
+
 function build_libmpfr() {
     # Build libmpfr.
     #
@@ -298,7 +356,8 @@ function build_gdb() {
 
     >&2 fancy_title "Building gdb for $target_arch"
 
-    ../configure --enable-static --enable-tui --with-static-standard-libraries --disable-inprocess-agent \
+    ../configure -C --enable-static --with-static-standard-libraries --disable-inprocess-agent \
+                 --enable-tui --with-python=/app/gdb/build/packages/cpython-static/build-$target_arch/bin/python3-config \
                  "--with-libiconv-prefix=$libiconv_prefix" --with-libiconv-type=static \
                  "--with-gmp=$libgmp_prefix" \
                  "--with-mpfr=$libmpfr_prefix" \
@@ -395,9 +454,11 @@ function build_gdb_with_dependencies() {
     # Parameters:
     # $1: target architecture
     # $2: build directory
+    # $3: src directory
 
     local target_arch="$1"
     local build_dir="$2"
+    local source_dir="$3"
     local packages_dir="$build_dir/packages"
     local artifacts_dir="$build_dir/artifacts"
 
@@ -427,15 +488,19 @@ function build_gdb_with_dependencies() {
     if [[ $? -ne 0 ]]; then
         return 1
     fi
-
     set_ncurses_link_variables "$ncursesw_build_dir"
 
-    build_and_install_gdb "$packages_dir/gdb" \
-                      "$iconv_build_dir/lib/.libs/" \
-                      "$gmp_build_dir/.libs/" \
-                      "$mpfr_build_dir/src/.libs/" \
-                      "$artifacts_dir" \
-                      "$target_arch"
+    python_build_dir="$(build_python "$packages_dir/cpython-static" "$target_arch")"
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    build_and_install_gdb "$packages_dir/binutils-gdb" \
+                          "$iconv_build_dir/lib/.libs/" \
+                          "$gmp_build_dir/.libs/" \
+                          "$mpfr_build_dir/src/.libs/" \
+                          "$artifacts_dir" \
+                          "$target_arch"
     if [[ $? -ne 0 ]]; then
         return 1
     fi
@@ -443,11 +508,11 @@ function build_gdb_with_dependencies() {
 
 function main() {
     if [[ $# -ne 3 ]]; then
-        >&2 echo "Usage: $0 <target_arch> <build_dir>"
+        >&2 echo "Usage: $0 <target_arch> <build_dir> <src_dir>"
         exit 1
     fi
 
-    build_gdb_with_dependencies "$1" "$2"
+    build_gdb_with_dependencies "$1" "$2" "$3"
     if [[ $? -ne 0 ]]; then
         >&2 echo "Error: failed to build gdb with dependencies"
         exit 1
