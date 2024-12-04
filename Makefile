@@ -2,7 +2,7 @@ ARCHS := x86_64 arm aarch64 powerpc mips mipsel
 TARGETS := $(addprefix build-, $(ARCHS))
 PACK_TARGETS := $(addprefix pack-, $(ARCHS))
 
-.PHONY: clean help download_packages build patch-gdb build-docker-image $(TARGETS) $(PACK_TARGETS)
+.PHONY: clean help download_packages build build-docker-image $(TARGETS) $(PACK_TARGETS)
 
 help:
 	@echo "Usage:"
@@ -32,21 +32,13 @@ build/download-packages.stamp: build/build-docker-image.stamp src/download_packa
 
 download-packages: build/download-packages.stamp
 
-build/patch-gdb.stamp: build/build-docker-image.stamp src/gdb_static.patch build/download-packages.stamp
-	docker run --user $(shell id -u):$(shell id -g) \
-		--rm --volume .:/app/gdb gdb-static env TERM=xterm-256color \
-		/app/gdb/src/patch_gdb.sh /app/gdb/build/packages/gdb /app/gdb/src/gdb_static.patch
-	touch build/patch-gdb.stamp
-
-patch-gdb: build/patch-gdb.stamp
-
 build: $(TARGETS)
 
-$(TARGETS): build-%: download-packages patch-gdb build-docker-image
+$(TARGETS): build-%: download-packages build-docker-image
 	mkdir -p build
 	docker run --user $(shell id -u):$(shell id -g) \
 		--rm --volume .:/app/gdb gdb-static env TERM=xterm-256color \
-		/app/gdb/src/build.sh $* /app/gdb/build/ /app/gdb/src/gdb_static.patch
+		/app/gdb/src/build.sh $* /app/gdb/build/ /app/gdb/src
 
 pack: $(PACK_TARGETS)
 

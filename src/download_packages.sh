@@ -5,11 +5,10 @@ script_dir=$(dirname "$0")
 . "$script_dir/utils.sh"
 
 # List of package URLs to download
-PACKAGE_URLS=(
+SOURCE_URLS=(
     "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz"
     "https://ftp.gnu.org/pub/gnu/gmp/gmp-6.3.0.tar.xz"
     "https://ftp.gnu.org/pub/gnu/mpfr/mpfr-4.2.1.tar.xz"
-    "https://ftp.gnu.org/gnu/gdb/gdb-15.2.tar.xz"
     "https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.5.tar.gz"
 )
 
@@ -188,7 +187,7 @@ function download_gdb_packages() {
 
     fancy_title "Starting download of GDB packages"
 
-    for url in "${PACKAGE_URLS[@]}"; do
+    for url in "${SOURCE_URLS[@]}"; do
         package_dir=$(package_url_to_dir "$url")
         download_and_extract_package "$url" "$package_dir" &
         download_pids+=($!)
@@ -202,8 +201,15 @@ function download_gdb_packages() {
         fi
     done
 
-    fancy_title "Finished downloading GDB packages"
+    if [[ ! -d gdb-static ]]; then
+        git clone https://github.com/guyush1/binutils-gdb.git --single-branch --branch gdb-static
+    fi
 
+    if [[ ! -d python3.12-static ]]; then
+        git clone https://github.com/guyush1/cpython-static.git --single-branch --branch python3.12-static
+    fi
+
+    fancy_title "Finished downloading GDB packages"
     popd
 }
 
