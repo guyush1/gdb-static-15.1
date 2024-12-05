@@ -201,14 +201,6 @@ function download_gdb_packages() {
         fi
     done
 
-    if [[ ! -d gdb-static ]]; then
-        git clone https://github.com/guyush1/binutils-gdb.git --single-branch --branch gdb-static
-    fi
-
-    if [[ ! -d python3.12-static ]]; then
-        git clone https://github.com/guyush1/cpython-static.git --single-branch --branch python3.12-static
-    fi
-
     fancy_title "Finished downloading GDB packages"
     popd
 }

@@ -1,0 +1,8 @@
+[submodule "cpython-static"]
+	path = src/submodule_packages/cpython-static
+	url = git@github.com:guyush1/cpython-static.git
+	branch = python3.12-static
+[submodule "binutils-gdb-static"]
+	path = src/submodule_packages/binutils-gdb
+	url = git@github.com:guyush1/binutils-gdb.git
+	branch = gdb-static
