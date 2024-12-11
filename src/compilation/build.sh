@@ -4,6 +4,9 @@
 script_dir=$(dirname "$0")
 source "$script_dir/utils.sh"
 
+# Don't want random unknown things to fail in the build procecss!
+set -e
+
 function set_compliation_variables() {
     # Set compilation variables such as which compiler to use.
     #
