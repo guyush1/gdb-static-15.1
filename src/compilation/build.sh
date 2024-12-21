@@ -43,7 +43,7 @@ function set_compliation_variables() {
         CROSS=mipsel-linux-gnu-
         export HOST=mipsel-linux-gnu
     elif [[ "$target_arch" == "x86_64" ]]; then
-        CROSS=""
+        CROSS=x86_64-linux-gnu-
         export HOST=x86_64-linux-gnu
     fi
 
