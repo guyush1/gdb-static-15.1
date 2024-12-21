@@ -1,0 +1,24 @@
+name: gdb-static-pr-pipeline
+
+on:
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        architecture: ["x86_64", "arm", "aarch64", "powerpc", "mips", "mipsel"]
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: sudo apt-get install -y wget
+
+    - name: Build
+      run: make build-${{ matrix.architecture }} -j$((`nproc`+1))

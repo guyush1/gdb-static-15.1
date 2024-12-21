@@ -1,17 +1,15 @@
-name: gdb-static-pipeline
+name: gdb-static-release-pipeline
 
 on:
-  pull_request:
-    branches:
-      - '*'
   push:
     tags:
       - 'v*'
 
+# Use a non-parallel single job pipeline because artifacts weigh too much. Instead,
+# simply build the files in the same job they are released.
 jobs:
-  build:
+  build_and_publish:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
       with:
@@ -26,14 +24,7 @@ jobs:
     - name: Pack
       run: make pack
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: gdb-static
-        path: build/artifacts/gdb-static*.tar.gz
-
     - name: Publish release
-      if: github.event_name == 'push'
       uses: softprops/action-gh-release@v2
       with:
         files: build/artifacts/gdb-static*.tar.gz
