@@ -52,6 +52,9 @@ function set_compliation_variables() {
 
     export CFLAGS="-O2"
     export CXXFLAGS="-O2"
+
+    # Strip the binary to reduce it's size.
+    export LDFLAGS="-s"
 }
 
 function set_ncurses_link_variables() {
