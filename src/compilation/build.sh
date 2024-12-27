@@ -335,6 +335,7 @@ function build_gdb() {
     # $3: libiconv prefix
     # $4: libgmp prefix
     # $5: libmpfr prefix
+    # $6: whether to build with python or not
     #
     # Echoes:
     # The gdb build directory
@@ -348,7 +349,15 @@ function build_gdb() {
     local libiconv_prefix="$3"
     local libgmp_prefix="$4"
     local libmpfr_prefix="$5"
-    local gdb_build_dir="$(realpath "$gdb_dir/build-$target_arch")"
+    local with_python="$6"
+
+    if [[ "$with_python" == "yes" ]]; then
+        local python_flag="--with-python=/app/gdb/build/packages/cpython-static/build-$target_arch/bin/python3-config"
+        local gdb_build_dir="$(realpath "$gdb_dir/build-${target_arch}_with_python")"
+    else
+        local python_flag="--without-python"
+        local gdb_build_dir="$(realpath "$gdb_dir/build-${target_arch}")"
+    fi
 
     echo "$gdb_build_dir"
     mkdir -p "$gdb_build_dir"
@@ -363,7 +372,7 @@ function build_gdb() {
     >&2 fancy_title "Building gdb for $target_arch"
 
     ../configure -C --enable-static --with-static-standard-libraries --disable-inprocess-agent \
-                 --enable-tui --with-python=/app/gdb/build/packages/cpython-static/build-$target_arch/bin/python3-config \
+                 --enable-tui "$python_flag" \
                  "--with-libiconv-prefix=$libiconv_prefix" --with-libiconv-type=static \
                  "--with-gmp=$libgmp_prefix" \
                  "--with-mpfr=$libmpfr_prefix" \
@@ -390,6 +399,7 @@ function install_gdb() {
     # $1: gdb build directory
     # $2: artifacts directory
     # $3: target architecture
+    # $4: whether gdb was built with or without python
     #
     # Returns:
     # 0: success
@@ -398,15 +408,22 @@ function install_gdb() {
     local gdb_build_dir="$1"
     local artifacts_dir="$2"
     local target_arch="$3"
+    local with_python="$4"
 
-    if [[ -d "$artifacts_dir/$target_arch" && -n "$(ls -A "$artifacts_dir/$target_arch")" ]]; then
+    if [[ "$with_python" == "yes" ]]; then
+        local artifacts_location="$artifacts_dir/${target_arch}_with_python"
+    else
+        local artifacts_location="$artifacts_dir/${target_arch}"
+    fi
+
+    if [[ -d "$artifacts_location" && -n "$(ls -A "$artifacts_location")" ]]; then
         >&2 echo "Skipping install: gdb already installed for $target_arch"
         return 0
     fi
 
     temp_artifacts_dir="$(mktemp -d)"
 
-    mkdir -p "$artifacts_dir/$target_arch"
+    mkdir -p "$artifacts_location"
 
     make -C "$gdb_build_dir" install "DESTDIR=$temp_artifacts_dir" 1>&2
     if [[ $? -ne 0 ]]; then
@@ -415,7 +432,7 @@ function install_gdb() {
     fi
 
     while read file; do
-        cp "$file" "$artifacts_dir/$target_arch/"
+        cp "$file" "$artifacts_location/"
     done < <(find "$temp_artifacts_dir/usr/local/bin" -type f -executable)
 
     rm -rf "$temp_artifacts_dir"
@@ -429,8 +446,9 @@ function build_and_install_gdb() {
     # $2: libiconv prefix
     # $3: libgmp prefix
     # $4: libmpfr prefix
-    # $5: install directory
-    # $6: target architecture
+    # $5: whether to build with python or not
+    # $6: install directory
+    # $7: target architecture
     #
     # Returns:
     # 0: success
@@ -440,15 +458,16 @@ function build_and_install_gdb() {
     local libiconv_prefix="$2"
     local libgmp_prefix="$3"
     local libmpfr_prefix="$4"
-    local artifacts_dir="$5"
-    local target_arch="$6"
+    local with_python="$5"
+    local artifacts_dir="$6"
+    local target_arch="$7"
 
-    gdb_build_dir="$(build_gdb "$gdb_dir" "$target_arch" "$libiconv_prefix" "$libgmp_prefix" "$libmpfr_prefix")"
+    gdb_build_dir="$(build_gdb "$gdb_dir" "$target_arch" "$libiconv_prefix" "$libgmp_prefix" "$libmpfr_prefix" "$with_python")"
     if [[ $? -ne 0 ]]; then
         return 1
     fi
 
-    install_gdb "$gdb_build_dir" "$artifacts_dir" "$target_arch"
+    install_gdb "$gdb_build_dir" "$artifacts_dir" "$target_arch" "$with_python"
     if [[ $? -ne 0 ]]; then
         return 1
     fi
@@ -461,10 +480,12 @@ function build_gdb_with_dependencies() {
     # $1: target architecture
     # $2: build directory
     # $3: src directory
+    # $4: whether to build gdb with python or not
 
     local target_arch="$1"
     local build_dir="$2"
     local source_dir="$3"
+    local with_python="$4"
     local packages_dir="$build_dir/packages"
     local artifacts_dir="$build_dir/artifacts"
 
@@ -496,15 +517,18 @@ function build_gdb_with_dependencies() {
     fi
     set_ncurses_link_variables "$ncursesw_build_dir"
 
-    python_build_dir="$(build_python "$packages_dir/cpython-static" "$target_arch")"
-    if [[ $? -ne 0 ]]; then
-        return 1
+    if [[ "$with_python" == "yes" ]]; then
+        build_python "$packages_dir/cpython-static" "$target_arch"
+        if [[ $? -ne 0 ]]; then
+            return 1
+        fi
     fi
 
     build_and_install_gdb "$packages_dir/binutils-gdb" \
                           "$iconv_build_dir/lib/.libs/" \
                           "$gmp_build_dir/.libs/" \
                           "$mpfr_build_dir/src/.libs/" \
+                          "$with_python" \
                           "$artifacts_dir" \
                           "$target_arch"
     if [[ $? -ne 0 ]]; then
@@ -513,12 +537,17 @@ function build_gdb_with_dependencies() {
 }
 
 function main() {
-    if [[ $# -ne 3 ]]; then
-        >&2 echo "Usage: $0 <target_arch> <build_dir> <src_dir>"
+    if [[ $# -lt 3 ]]; then
+        >&2 echo "Usage: $0 <target_arch> <build_dir> <src_dir> [--with-python]"
         exit 1
     fi
 
-    build_gdb_with_dependencies "$1" "$2" "$3"
+    local with_python="no"
+    if [[ "$4" == "--with-python" ]]; then
+        with_python="yes"
+    fi
+
+    build_gdb_with_dependencies "$1" "$2" "$3" "$with_python"
     if [[ $? -ne 0 ]]; then
         >&2 echo "Error: failed to build gdb with dependencies"
         exit 1
