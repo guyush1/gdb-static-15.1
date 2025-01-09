@@ -57,15 +57,18 @@ function set_compliation_variables() {
     export LDFLAGS="-s"
 }
 
-function set_ncurses_link_variables() {
-    # Set up ncurses library link variables
+function set_up_lib_search_paths() {
+    # Set up library-related linker search paths.
     #
     # Parameters:
     # $1: ncursesw build dir
+    # $2: libexpat build dir
     local ncursesw_build_dir="$1"
+    local libexpat_build_dir="$2"
 
-    # Allow tui mode by adding our custom built static ncursesw library to the linker search path.
-    export LDFLAGS="-L$ncursesw_build_dir/lib $LDFLAGS"
+    # I) Allow tui mode by adding our custom built static ncursesw library to the linker search path.
+    # II) Allow parsing xml files by adding libexpat library to the linker search path.
+    export LDFLAGS="-L$ncursesw_build_dir/lib -L$libexpat_build_dir/lib/.libs $LDFLAGS"
 }
 
 function build_iconv() {
@@ -210,6 +213,56 @@ function build_ncurses() {
     fi
 
     >&2 fancy_title "Finished building libncursesw for $target_arch"
+
+    popd > /dev/null
+}
+
+function build_libexpat() {
+    # Build libexpat.
+    #
+    # Parameters:
+    # $1: libexpat package directory
+    # $2: target architecture
+    #
+    # Echoes:
+    # The libexpat build directory
+    #
+    # Returns:
+    # 0: success
+    # 1: failure
+    local libexpat_dir="$1"
+    local target_arch="$2"
+    local libexpat_build_dir="$(realpath "$libexpat_dir/build-$target_arch")"
+
+    echo "$libexpat_build_dir"
+    mkdir -p "$libexpat_build_dir"
+
+    if [[ -f "$libexpat_build_dir/lib/.libs/libexpat.a" ]]; then
+        >&2 echo "Skipping build: libexpat already built for $target_arch"
+        return 0
+    fi
+
+    pushd "$libexpat_build_dir" > /dev/null
+
+    >&2 fancy_title "Building libexpat for $target_arch"
+
+    # Generate configure if it doesnt exist.
+    if [[ ! -f "$libexpat_build_dir/../expat/configure" ]]; then
+        >&2 ../expat/buildconf.sh ../expat/
+    fi
+
+    ../expat/configure --enable-static "CC=$CC" "CXX=$CXX" "--host=$HOST" \
+        "CFLAGS=$CFLAGS" "CXXFLAGS=$CXXFLAGS" 1>&2
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    make -j$(nproc) 1>&2
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    >&2 fancy_title "Finished building libexpat for $target_arch"
 
     popd > /dev/null
 }
@@ -388,10 +441,11 @@ function build_gdb() {
 
     ../configure -C --enable-static --with-static-standard-libraries --disable-inprocess-agent \
                  --enable-tui "$python_flag" \
+                 --with-expat --with-libexpat-type="static" \
                  "--with-libiconv-prefix=$libiconv_prefix" --with-libiconv-type=static \
                  "--with-gmp=$libgmp_prefix" \
                  "--with-mpfr=$libmpfr_prefix" \
-                 "CC=$CC" "CXX=$CXX" "--host=$HOST" \
+                 "CC=$CC" "CXX=$CXX" "LDFLAGS=$LDFLAGS" "--host=$HOST" \
                  "CFLAGS=$CFLAGS" "CXXFLAGS=$CXXFLAGS" 1>&2
     if [[ $? -ne 0 ]]; then
         return 1
@@ -530,7 +584,13 @@ function build_gdb_with_dependencies() {
     if [[ $? -ne 0 ]]; then
         return 1
     fi
-    set_ncurses_link_variables "$ncursesw_build_dir"
+
+    libexpat_build_dir="$(build_libexpat "$packages_dir/libexpat" "$target_arch")"
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+
+    set_up_lib_search_paths "$ncursesw_build_dir" "$libexpat_build_dir"
 
     if [[ "$with_python" == "yes" ]]; then
         local gdb_python_dir="$packages_dir/binutils-gdb/gdb/python/lib/"
