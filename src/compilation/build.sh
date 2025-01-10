@@ -220,6 +220,8 @@ function build_python() {
     # Parameters:
     # $1: python package directory
     # $2: target architecture
+    # $3: gdb's python module directory parent
+    # $4: pygment's toplevel source dir.
     #
     # Echoes:
     # The python build directory
@@ -229,6 +231,8 @@ function build_python() {
     # 1: failure
     local python_dir="$1"
     local target_arch="$2"
+    local gdb_python_parent="$3"
+    local pygments_source_dir="$4"
     local python_lib_dir="$(realpath "$python_dir/build-$target_arch")"
 
     echo "$python_lib_dir"
@@ -257,6 +261,17 @@ function build_python() {
         --disable-ipv6 \
         --disable-shared
 
+    # Extract the regular standard library modules that are to be frozen and include the gdb and pygments custom libraries.
+    export EXTRA_FROZEN_MODULES="$(printf "%s" "$(< ${script_dir}/frozen_python_modules.txt)" | tr $'\n' ";")"
+    export EXTRA_FROZEN_MODULES="${EXTRA_FROZEN_MODULES};<gdb.**.*>: gdb = ${gdb_python_parent};<pygments.**.*>: pygments = ${pygments_source_dir}"
+    >&2 echo "Frozen Modules: ${EXTRA_FROZEN_MODULES}"
+
+    # Regenerate frozen modules with gdb env varaible. Do it after the configure because we need
+    # the `regen-frozen` makefile.
+    >&2 python3.12 ../Tools/build/freeze_modules.py
+    >&2 make regen-frozen
+
+    # Build python after configuring the project and regnerating frozen files.
     >&2 make -j $(nproc)
     if [[ $? -ne 0 ]]; then
         return 1
@@ -518,7 +533,9 @@ function build_gdb_with_dependencies() {
     set_ncurses_link_variables "$ncursesw_build_dir"
 
     if [[ "$with_python" == "yes" ]]; then
-        build_python "$packages_dir/cpython-static" "$target_arch"
+        local gdb_python_dir="$packages_dir/binutils-gdb/gdb/python/lib/"
+        local pygments_source_dir="$packages_dir/pygments/"
+        local python_build_dir="$(build_python "$packages_dir/cpython-static" "$target_arch" "$gdb_python_dir" "$pygments_source_dir")"
         if [[ $? -ne 0 ]]; then
             return 1
         fi
