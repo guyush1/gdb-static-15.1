@@ -19,6 +19,7 @@ RUN apt update && apt install -y \
     gcc-powerpc-linux-gnu \
     git \
     libncurses-dev \
+    libtool \
     m4  \
     make \
     patch \
