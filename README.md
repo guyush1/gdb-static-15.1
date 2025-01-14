@@ -70,6 +70,9 @@ You may choose to copy the `gdb` binary to the platform, or use `gdbserver` to d
 
 ## Development
 
+> [!NOTE]
+> Before building, make sure to initialize & sync the git submodules.
+
 Alternatively, you can build `gdb-static` from source. To do so, follow the instructions below:
 
 <details open>
