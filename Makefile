@@ -13,6 +13,8 @@ BUILD_PACKAGES_DIR := "build/packages"
 
 .PHONY: clean help download_packages build build-docker-image $(ALL_TARGETS) $(ALL_PACK_TARGETS)
 
+.NOTPARALLEL: build pack
+
 help:
 	@echo "Usage:"
 	@echo "  make build"
