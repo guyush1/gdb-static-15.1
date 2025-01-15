@@ -64,11 +64,6 @@ function download_package() {
     local url="$1"
     local output="$2"
 
-    if [[ -f "$output" ]]; then
-        >&2 echo "Skipping download: $output already exists"
-        return 0
-    fi
-
     wget "$url" -O "$output"
     if [[ $? -ne 0 ]]; then
         >&2 echo "Error: failed to download $url"
@@ -96,11 +91,6 @@ function extract_package() {
     if [[ ! -f "$tarball" ]]; then
         >&2 echo "Error: $tarball does not exist"
         return 1
-    fi
-
-    if [[ -d "$output_dir" ]]; then
-        >&2 echo "Skipping extraction: $output_dir already exists"
-        return 0
     fi
 
     pushd "$temp_dir" > /dev/null
