@@ -103,6 +103,10 @@ function extract_package() {
 
     popd > /dev/null
 
+    # Make sure output dir is empty, so we could move content into it.
+    # The directory might not exist, so we need to pass || true so that set -e won't fail us.
+    rm -rf "$output_dir" || true
+
     mv "$temp_dir/$package_dir" "$output_dir"
     if [[ $? -ne 0 ]]; then
         return 1
